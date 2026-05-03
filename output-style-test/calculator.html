@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>계산기</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .calculator {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 400px;
+            overflow: hidden;
+        }
+
+        .display {
+            background: #222;
+            color: #fff;
+            font-size: 48px;
+            padding: 30px;
+            text-align: right;
+            word-wrap: break-word;
+            word-break: break-all;
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+        .previous-value {
+            font-size: 24px;
+            color: #888;
+            min-height: 30px;
+        }
+
+        .current-value {
+            min-height: 60px;
+        }
+
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0;
+        }
+
+        button {
+            padding: 20px;
+            font-size: 24px;
+            border: none;
+            cursor: pointer;
+            background: #f0f0f0;
+            color: #333;
+            font-weight: 600;
+            transition: all 0.2s;
+            border-right: 1px solid #ddd;
+            border-bottom: 1px solid #ddd;
+        }
+
+        button:hover {
+            background: #e8e8e8;
+        }
+
+        button:active {
+            transform: scale(0.95);
+            background: #d8d8d8;
+        }
+
+        button:last-child {
+            border-right: none;
+        }
+
+        .row:last-child button {
+            border-bottom: none;
+        }
+
+        .operator {
+            background: #667eea;
+            color: white;
+            font-size: 28px;
+        }
+
+        .operator:hover {
+            background: #5568d3;
+        }
+
+        .equals {
+            background: #4caf50;
+            color: white;
+            grid-column: span 2;
+            font-size: 28px;
+        }
+
+        .equals:hover {
+            background: #45a049;
+        }
+
+        .clear {
+            background: #ff6b6b;
+            color: white;
+            grid-column: span 2;
+            font-size: 20px;
+        }
+
+        .clear:hover {
+            background: #ff5252;
+        }
+
+        .delete {
+            background: #ffa500;
+            color: white;
+            font-size: 20px;
+        }
+
+        .delete:hover {
+            background: #ff9500;
+        }
+
+        .display.error .current-value {
+            color: #ff6b6b;
+            font-size: 36px;
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <div class="display">
+            <div class="previous-value" id="previousValue"></div>
+            <div class="current-value" id="currentValue">0</div>
+        </div>
+
+        <div class="buttons">
+            <button class="clear" onclick="clearDisplay()">AC</button>
+            <button class="delete" onclick="deleteLast()">←</button>
+            <button class="operator" onclick="chooseOperation('÷')">÷</button>
+            <button onclick="appendNumber('7')">7</button>
+            <button onclick="appendNumber('8')">8</button>
+            <button onclick="appendNumber('9')">9</button>
+            <button class="operator" onclick="chooseOperation('×')">×</button>
+            <button onclick="appendNumber('4')">4</button>
+            <button onclick="appendNumber('5')">5</button>
+            <button onclick="appendNumber('6')">6</button>
+            <button class="operator" onclick="chooseOperation('-')">−</button>
+            <button onclick="appendNumber('1')">1</button>
+            <button onclick="appendNumber('2')">2</button>
+            <button onclick="appendNumber('3')">3</button>
+            <button class="operator" onclick="chooseOperation('+')">+</button>
+            <button onclick="appendNumber('0')">0</button>
+            <button onclick="appendNumber('.')">.</button>
+            <button class="equals" onclick="compute()">=</button>
+        </div>
+    </div>
+
+    <script>
+        let previousValue = '';
+        let currentValue = '0';
+        let operation = null;
+        let isError = false;
+
+        const previousDisplay = document.getElementById('previousValue');
+        const currentDisplay = document.getElementById('currentValue');
+
+        function updateDisplay() {
+            currentDisplay.innerText = currentValue;
+            if (operation) {
+                previousDisplay.innerText = `${previousValue} ${operation}`;
+            } else {
+                previousDisplay.innerText = '';
+            }
+        }
+
+        // 에러 상태를 표시하고 계산기 상태 초기화
+        function showError(message) {
+            isError = true;
+            currentValue = message;
+            operation = null;
+            previousValue = '';
+            document.querySelector('.display').classList.add('error');
+            currentDisplay.innerText = message;
+            previousDisplay.innerText = '';
+        }
+
+        function appendNumber(number) {
+            // 에러 상태에서 숫자를 누르면 계산기를 초기화하고 시작
+            if (isError) {
+                clearDisplay();
+            }
+
+            // 소수점이 이미 있으면 또 추가하지 않음
+            if (number === '.' && currentValue.includes('.')) return;
+
+            // 0일 때 숫자를 누르면 그 숫자로 시작
+            if (currentValue === '0' && number !== '.') {
+                currentValue = number;
+            } else {
+                currentValue += number;
+            }
+
+            updateDisplay();
+        }
+
+        function chooseOperation(op) {
+            // 에러 상태에서는 연산자 입력 무시
+            if (isError) return;
+
+            // 아무것도 입력하지 않았으면 무시 (수정: && → ||)
+            if (currentValue === '' || currentValue === '0') return;
+
+            // 이미 operation이 있으면 먼저 계산
+            if (operation !== null) {
+                compute();
+            }
+
+            // compute() 후 에러 상태가 됐으면 연산자 선택 중단
+            if (isError) return;
+
+            operation = op;
+            previousValue = currentValue;
+            currentValue = '';
+            updateDisplay();
+        }
+
+        function compute() {
+            // 계산할 조건이 아니면 무시
+            if (operation === null || currentValue === '') return;
+
+            let result;
+            const prev = parseFloat(previousValue);
+            const current = parseFloat(currentValue);
+
+            // 0 나누기 예외처리: 0 ÷ 0과 일반 0 나누기 구분
+            if (operation === '÷') {
+                if (prev === 0 && current === 0) {
+                    showError('정의되지 않음');
+                    return;
+                }
+                if (current === 0) {
+                    showError('0으로 나눌 수 없음');
+                    return;
+                }
+            }
+
+            switch (operation) {
+                case '+':
+                    result = prev + current;
+                    break;
+                case '-':
+                    result = prev - current;
+                    break;
+                case '×':
+                    result = prev * current;
+                    break;
+                case '÷':
+                    result = prev / current;
+                    break;
+                default:
+                    return;
+            }
+
+            // 연산 결과 유효성 검사
+            if (!isFinite(result)) {
+                showError('범위 초과');
+                return;
+            }
+            if (isNaN(result)) {
+                showError('계산 오류');
+                return;
+            }
+
+            // 소수점 자리수 제한 (부동소수점 오차 방지)
+            currentValue = Math.round(result * 100000000) / 100000000;
+            currentValue = currentValue.toString();
+            operation = null;
+            previousValue = '';
+            updateDisplay();
+        }
+
+        function clearDisplay() {
+            currentValue = '0';
+            previousValue = '';
+            operation = null;
+            isError = false;
+            document.querySelector('.display').classList.remove('error');
+            updateDisplay();
+        }
+
+        function deleteLast() {
+            if (currentValue.length > 1) {
+                currentValue = currentValue.slice(0, -1);
+            } else {
+                currentValue = '0';
+            }
+            updateDisplay();
+        }
+
+        updateDisplay();
+    </script>
+</body>
+</html>
